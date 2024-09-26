@@ -1,0 +1,19 @@
+# Test your FastAPI endpoints
+
+### Create a new Grupo
+POST http://localhost:8000/grupo
+Content-Type: application/json
+
+{
+  "nome": "Grupo Teste"
+}
+
+###
+GET http://localhost:8000/grupos
+
+### Get labirintos for a Grupo
+# Replace <grupo_id> with the actual UUID returned from the previous request
+GET http://localhost:8000/labirintos/a8dbbc07-bce5-4e96-8267-d07d7c308366
+
+### Get all WebSocket sessions
+GET http://localhost:8000/sessoes
