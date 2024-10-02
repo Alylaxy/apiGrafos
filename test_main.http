@@ -5,15 +5,56 @@ POST http://localhost:8000/grupo
 Content-Type: application/json
 
 {
-  "nome": "Grupo Teste"
+  "nome": "Sr. Vidor"
 }
 
 ###
 GET http://localhost:8000/grupos
 
+### Create a new Labirinto
+POST http://localhost:8000/labirinto
+Content-Type: application/json
+
+{
+    "vertices": [
+        {
+            "id": 0,
+            "labirintoId": 0,
+            "adjacentes": [2, 3],
+            "tipo": 1
+        },
+        {
+            "id": 1,
+            "labirintoId": 0,
+            "adjacentes": [4],
+            "tipo": 2
+        },
+        {
+            "id": 2,
+            "labirintoId": 0,
+            "adjacentes": [0],
+            "tipo": 0
+        },
+        {
+            "id": 3,
+            "labirintoId": 0,
+            "adjacentes": [0, 4],
+            "tipo": 0
+        },
+        {
+            "id": 4,
+            "labirintoId": 0,
+            "adjacentes": [1, 3],
+            "tipo": 0
+        }
+    ],
+    "entrada": 0,
+    "dificuldade": "Basiquinho e pequeno"
+}
+
 ### Get labirintos for a Grupo
 # Replace <grupo_id> with the actual UUID returned from the previous request
-GET http://localhost:8000/labirintos/a8dbbc07-bce5-4e96-8267-d07d7c308366
+GET http://localhost:8000/labirintos/23042260-6f33-4c19-a063-0633be33bef6
 
 ### Get all WebSocket sessions
 GET http://localhost:8000/sessoes
