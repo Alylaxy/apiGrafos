@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List, Dict
+from typing import Optional, List
 from uuid import UUID
 import uuid
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, UUID as SQLUUID
@@ -11,22 +11,41 @@ from sqlalchemy.schema import PrimaryKeyConstraint
 Base = declarative_base()
 
 # SQLAlchemy models
+class Aresta(Base):
+    __tablename__ = 'arestas'
+
+    vertice_origem_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
+    vertice_destino_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
+    peso = Column(Integer, nullable=False)
+
+    # Definindo a chave primária composta
+    __table_args__ = (PrimaryKeyConstraint('vertice_origem_id', 'vertice_destino_id', name='pk_aresta'),)
+
+    # Relacionamentos
+    vertice_origem = relationship("Vertice", foreign_keys=[vertice_origem_id])
+    vertice_destino = relationship("Vertice", foreign_keys=[vertice_destino_id])
+
+    def __repr__(self):
+        return f"<Aresta(origem={self.vertice_origem_id}, destino={self.vertice_destino_id}, peso={self.peso})>"
+
 class Vertice(Base):
     __tablename__ = 'vertices'
 
-    id = Column(Integer, nullable=False)  # ID for the vertex within a specific labyrinth/graph
-    labirinto_id = Column(Integer, ForeignKey('labirintos.id'), nullable=False)  # Reference to the labyrinth/graph
-    adjacentes = Column(String)  # Assuming adjacent vertices are stored as a comma-separated string
-    tipo = Column(Integer) # Defining behavior of the vertex | 0 = Normal, 1 = Entrada, 2 = Saida
+    id = Column(Integer, nullable=False)
+    labirinto_id = Column(Integer, ForeignKey('labirintos.id'), nullable=False)
+    tipo = Column(Integer)
 
-    # Relationships
     labirinto = relationship("Labirinto", back_populates="vertices")
+    
+    # Relacionamento com a tabela Aresta para definir as adjacências
+    arestas_origem = relationship("Aresta", foreign_keys=[Aresta.vertice_origem_id], back_populates="vertice_origem")
+    arestas_destino = relationship("Aresta", foreign_keys=[Aresta.vertice_destino_id], back_populates="vertice_destino")
 
-    # Composite Primary Key (id, labirinto_id)
     __table_args__ = (PrimaryKeyConstraint('id', 'labirinto_id', name='pk_vertice'),)
 
     def __repr__(self):
         return f"<Vertice(id={self.id}, labirinto_id={self.labirinto_id})>"
+
 
 class Labirinto(Base):
     __tablename__ = 'labirintos'
@@ -57,17 +76,23 @@ class SessaoWebSocket(Base):
 class VerticeModel(BaseModel):
     id: int
     labirintoId: int
-    adjacentes: List[int]
     tipo: int
+
+class ArestaModel(BaseModel):
+    origemId: int
+    destinoId: int
+    peso: int
 
 class LabirintoModel(BaseModel):
     vertices: List[VerticeModel]
+    arestas: List[ArestaModel]
     entrada: int
     dificuldade: str  
 
 class GrupoModel(BaseModel):
     nome: str
     labirintos_concluidos : Optional[List[int]] = None
+
 
 # DTOs
 class VerticeDto(BaseModel):
@@ -93,22 +118,6 @@ Base.metadata.create_all(engine)
 
 SessionLocal = sessionmaker(bind=engine)
 
-def convert_pydantic_to_sqlalchemy(labirinto: LabirintoModel) -> Labirinto:
-    vertices = [
-        Vertice(
-            id=vertice.id,
-            labirinto_id=vertice.labirintoId,
-            adjacentes=','.join(map(str, vertice.adjacentes)),  # Convert list to comma-separated string
-            tipo=vertice.tipo
-        )
-        for vertice in labirinto.vertices
-    ]
-    return Labirinto(
-        vertices=vertices,
-        entrada=labirinto.entrada,
-        dificuldade=labirinto.dificuldade
-    )
-
 def get_db():
     db = SessionLocal()
     try:
@@ -133,16 +142,23 @@ async def criar_labirinto(labirinto: LabirintoModel):
     labirinto_db = Labirinto(entrada=labirinto.entrada, dificuldade=labirinto.dificuldade)
     db.add(labirinto_db)
     db.commit()
-    db.refresh(labirinto_db)  # Refresh to get the generated ID
+    db.refresh(labirinto_db)
 
     for vertice in labirinto.vertices:
         vertice_db = Vertice(
             id=vertice.id,
             labirinto_id=labirinto_db.id,
-            adjacentes=','.join(map(str, vertice.adjacentes)),  # Convert list to comma-separated string
             tipo=vertice.tipo
         )
         db.add(vertice_db)
+    for aresta in labirinto.arestas:
+        aresta_db = Aresta(
+            vertice_origem_id=aresta.origemId,
+            vertice_destino_id=aresta.destinoId,
+            peso=aresta.peso
+        )
+        db.add(aresta_db)
+
     db.commit()
     db.refresh(vertice_db)
 
