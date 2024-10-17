@@ -18,9 +18,10 @@ class Aresta(Base):
     vertice_origem_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
     vertice_destino_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
     peso = Column(Integer, nullable=False)
+    labirinto = Column(Integer, ForeignKey('labirintos.id'),nullable=False)
 
     # Definindo a chave primária composta
-    __table_args__ = (PrimaryKeyConstraint('vertice_origem_id', 'vertice_destino_id', name='pk_aresta'),)
+    __table_args__ = (PrimaryKeyConstraint('vertice_origem_id', 'vertice_destino_id', 'labirinto', name='pk_aresta'),)
 
     # Relacionamentos
     vertice_origem = relationship("Vertice", foreign_keys=[vertice_origem_id])
@@ -113,6 +114,10 @@ class GrupoDto(BaseModel):
 
 class CriarGrupoDto(BaseModel):
     nome: str
+
+class WebsocketRequestDto(BaseModel):
+    grupo_id: UUID
+    labirinto_id: int
 
 # Websocket manager
 class ConnectionManager:
@@ -300,20 +305,20 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
         await manager.broadcast(f"Grupo {grupo_id} desconectado.")
 
 @app.post("/generate-websocket/")
-async def generate_websocket_link(grupo_id: UUID, labirinto_id: int):
+async def generate_websocket_link(connection: WebsocketRequestDto):
     db = next(get_db())
-    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
-    labirinto = db.query(Labirinto).filter(Labirinto.id == labirinto_id).first()
+    grupo = db.query(Grupo).filter(Grupo.id == connection.grupo_id).first()
+    labirinto = db.query(Labirinto).filter(Labirinto.id == connection.labirinto_id).first()
 
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo não encontrado")
     if not labirinto:
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
     
-    ws_url = f"ws://localhost:8000/ws/{grupo_id}/{labirinto_id}"
+    ws_url = f"ws://localhost:8000/ws/{connection.grupo_id}/{connection.labirinto_id}"
     
     # Salva a sessão no banco de dados
-    sessao_ws = SessaoWebSocket(grupo_id=str(grupo_id), conexao=ws_url)
+    sessao_ws = SessaoWebSocket(grupo_id=str(connection.grupo_id), conexao=ws_url)
     db.add(sessao_ws)
     db.commit()
     
