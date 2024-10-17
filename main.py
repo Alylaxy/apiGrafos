@@ -244,9 +244,9 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
         aresta = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
         adjacentes = [a.vertice_destino_id for a in aresta]
         vertice_atual.adjacentes = ",".join(map(str, adjacentes))
-        
+
         # Envia o vértice de entrada para o cliente
-        await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}", websocket)
+        await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}, Tipo: {vertice_atual.tipo}", websocket)
 
         # Loop para interações do cliente
         while True:
@@ -274,9 +274,18 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                     if not vertice_atual:
                         await manager.send_message("Erro ao acessar o vértice desejado.", websocket)
                         continue
+                    
+                    aresta = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
+
+                    if not aresta:
+                        await manager.send_message("Vértice sem adjacentes.", websocket)
+                        continue
+
+                    adjacentes = [a.vertice_destino_id for a in aresta]
+                    vertice_atual.adjacentes = ",".join(map(str, adjacentes))
 
                     # Envia as informações do novo vértice ao cliente
-                    await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}", websocket)
+                    await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}, Tipo: {vertice_atual.tipo}", websocket)
                 else:
                     await manager.send_message("Comando não reconhecido. Use 'ir: id_do_vertice' para se mover.", websocket)
             
