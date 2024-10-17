@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from typing import Optional, List
 from uuid import UUID
 import uuid
+import asyncio
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, UUID as SQLUUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -45,7 +46,6 @@ class Vertice(Base):
 
     def __repr__(self):
         return f"<Vertice(id={self.id}, labirinto_id={self.labirinto_id})>"
-
 
 class Labirinto(Base):
     __tablename__ = 'labirintos'
@@ -93,7 +93,6 @@ class GrupoModel(BaseModel):
     nome: str
     labirintos_concluidos : Optional[List[int]] = None
 
-
 # DTOs
 class VerticeDto(BaseModel):
     id: int
@@ -112,6 +111,29 @@ class GrupoDto(BaseModel):
     nome: str
     labirintos_concluidos: Optional[List[int]]
 
+class CriarGrupoDto(BaseModel):
+    nome: str
+
+# Websocket manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+
 # Create the database and tables
 engine = create_engine('sqlite:///./db.sqlite3', echo=True)
 Base.metadata.create_all(engine)
@@ -128,7 +150,7 @@ def get_db():
 app = FastAPI()
 
 @app.post("/grupo")
-async def registrar_grupo(grupo: GrupoModel):
+async def registrar_grupo(grupo: CriarGrupoDto):
     db = next(get_db())
     grupo_db = Grupo(id=uuid.uuid4(), nome=grupo.nome)
     db.add(grupo_db)
@@ -195,6 +217,94 @@ async def get_labirintos(grupo_id: UUID):
 @app.get("/sessoes")
 async def get_websocket_sessions():
     pass
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/{grupo_id}/{labirinto_id}")
+async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id: int):
+    await manager.connect(websocket)
+    db = next(get_db())
+
+    try:
+        # Obtém o labirinto e seu vértice de entrada
+        labirinto = db.query(Labirinto).filter(Labirinto.id == labirinto_id).first()
+        if not labirinto:
+            await websocket.send_text("Labirinto não encontrado.")
+            await manager.disconnect(websocket)
+            return
+
+        # Obtém o vértice de entrada
+        vertice_atual = db.query(Vertice).filter(Vertice.labirinto_id == labirinto_id, Vertice.id == labirinto.entrada).first()
+
+        if not vertice_atual:
+            await manager.send_message("Vértice de entrada não encontrado.", websocket)
+            await manager.disconnect(websocket)
+            return
+
+        # Envia o vértice de entrada para o cliente
+        await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}", websocket)
+
+        # Loop para interações do cliente
+        while True:
+            try:
+                # Espera por uma mensagem do cliente com timeout de 60 segundos
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
+                
+                if data.startswith("ir:"):
+                    # Extrai o id do vértice desejado
+                    try:
+                        vertice_desejado_id = int(data.split(":")[1].strip())
+                    except ValueError:
+                        await manager.send_message("Comando inválido. Use 'ir: id_do_vertice'", websocket)
+                        continue
+
+                    # Verifica se o vértice desejado está nos adjacentes do vértice atual
+                    adjacentes = list(map(int, vertice_atual.adjacentes.split(",")))
+                    if vertice_desejado_id not in adjacentes:
+                        await manager.send_message("Vértice inválido.", websocket)
+                        continue
+
+                    # Move para o vértice desejado
+                    vertice_atual = db.query(Vertice).filter(Vertice.labirinto_id == labirinto_id, Vertice.id == vertice_desejado_id).first()
+
+                    if not vertice_atual:
+                        await manager.send_message("Erro ao acessar o vértice desejado.", websocket)
+                        continue
+
+                    # Envia as informações do novo vértice ao cliente
+                    await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}", websocket)
+                else:
+                    await manager.send_message("Comando não reconhecido. Use 'ir: id_do_vertice' para se mover.", websocket)
+            
+            except asyncio.TimeoutError:
+                # Timeout de 60 segundos sem mensagem, desconecta o WebSocket
+                await manager.send_message("Conexão encerrada por inatividade.", websocket)
+                await manager.disconnect(websocket)
+                break
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        await manager.broadcast(f"Grupo {grupo_id} desconectado.")
+
+@app.post("/generate-websocket/")
+async def generate_websocket_link(grupo_id: UUID, labirinto_id: int):
+    db = next(get_db())
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
+    labirinto = db.query(Labirinto).filter(Labirinto.id == labirinto_id).first()
+
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+    if not labirinto:
+        raise HTTPException(status_code=404, detail="Labirinto não encontrado")
+    
+    ws_url = f"ws://localhost:8000/ws/{grupo_id}/{labirinto_id}"
+    
+    # Salva a sessão no banco de dados
+    sessao_ws = SessaoWebSocket(grupo_id=str(grupo_id), conexao=ws_url)
+    db.add(sessao_ws)
+    db.commit()
+    
+    return {"websocket_url": ws_url}
 
 
 if __name__ == "__main__":
