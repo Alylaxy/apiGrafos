@@ -241,6 +241,10 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             await manager.disconnect(websocket)
             return
 
+        aresta = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
+        adjacentes = [a.vertice_destino_id for a in aresta]
+        vertice_atual.adjacentes = ",".join(map(str, adjacentes))
+        
         # Envia o vértice de entrada para o cliente
         await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}", websocket)
 
