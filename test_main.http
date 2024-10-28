@@ -8,7 +8,7 @@ Content-Type: application/json
   "nome": "Sr. Vidor"
 }
 
-###
+### Mostra todos os grupos salvos no db (DEBUG)
 GET http://localhost:8000/grupos
 
 ### Create a new Labirinto
@@ -89,9 +89,8 @@ Content-Type: application/json
     "dificuldade": "Basiquinho e pequeno"
 }
 
-### Get labirintos for a Grupo
-# Replace <grupo_id> with the actual UUID returned from the previous request
+### Get labirintos information for a Grupo
 GET http://localhost:8000/labirintos/23042260-6f33-4c19-a063-0633be33bef6
 
-### Get all WebSocket sessions
+### Get all WebSocket sessions (DEBUG)
 GET http://localhost:8000/sessoes
