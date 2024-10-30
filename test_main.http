@@ -46,41 +46,49 @@ Content-Type: application/json
     "arestas":[
         {
             "origemId": 0,
+            "labirintoId": 0,
             "destinoId": 2,
             "peso": 1
         },
         {
             "origemId": 0,
+            "labirintoId": 0,
             "destinoId": 3,
             "peso": 1
         },
         {
             "origemId": 1,
+            "labirintoId": 0,
             "destinoId": 2,
             "peso": 1
         },
         {
             "origemId": 2,
+            "labirintoId": 0,
             "destinoId": 0,
             "peso": 1
         },
         {
             "origemId": 2,
+            "labirintoId": 0,
             "destinoId": 1,
             "peso": 1
         },
         {
             "origemId": 3,
+            "labirintoId": 0,
             "destinoId": 0,
             "peso": 1
         },
         {
             "origemId": 3,
+            "labirintoId": 0,
             "destinoId": 4,
             "peso": 1
         },
         {
             "origemId": 4,
+            "labirintoId": 0,
             "destinoId": 3,
             "peso": 1
         }
