@@ -18,9 +18,10 @@ class Aresta(Base):
     vertice_origem_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
     vertice_destino_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
     peso = Column(Integer, nullable=False)
+    labirinto_id = Column(Integer, ForeignKey('labirintos.id'),nullable=False)
 
     # Definindo a chave primária composta
-    __table_args__ = (PrimaryKeyConstraint('vertice_origem_id', 'vertice_destino_id', name='pk_aresta'),)
+    __table_args__ = (PrimaryKeyConstraint('vertice_origem_id', 'vertice_destino_id', 'labirinto_id', name='pk_aresta'),)
 
     # Relacionamentos
     vertice_origem = relationship("Vertice", foreign_keys=[vertice_origem_id])
@@ -114,6 +115,15 @@ class GrupoDto(BaseModel):
 class CriarGrupoDto(BaseModel):
     nome: str
 
+class WebsocketRequestDto(BaseModel):
+    grupo_id: UUID
+    labirinto_id: int
+
+class RespostaDto(BaseModel):
+    labirinto: int
+    grupo: UUID
+    vertices: List[int]
+
 # Websocket manager
 class ConnectionManager:
     def __init__(self):
@@ -176,6 +186,7 @@ async def criar_labirinto(labirinto: LabirintoModel):
     for aresta in labirinto.arestas:
         aresta_db = Aresta(
             vertice_origem_id=aresta.origemId,
+            labirinto_id=labirinto_db.id,
             vertice_destino_id=aresta.destinoId,
             peso=aresta.peso
         )
@@ -241,8 +252,11 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             await manager.disconnect(websocket)
             return
 
-        # Envia o vértice de entrada para o cliente
-        await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}", websocket)
+        arestas = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
+        adjacentes = [{{a.vertice_destino_id},{a.peso}} for a in arestas]
+
+        # Envia o vértice de entrada e seus adjacentes para o cliente
+        await manager.send_message(f"Vértice atual: {vertice_atual.id}, Tipo: {vertice_atual.tipo}, Adjacentes(Vertice, Peso): {adjacentes}", websocket)
 
         # Loop para interações do cliente
         while True:
@@ -270,9 +284,18 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                     if not vertice_atual:
                         await manager.send_message("Erro ao acessar o vértice desejado.", websocket)
                         continue
+                    
+                    aresta = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
+
+                    if not aresta:
+                        await manager.send_message("Vértice sem adjacentes.", websocket)
+                        continue
+
+                    adjacentes = [a.vertice_destino_id for a in aresta]
+                    vertice_atual.adjacentes = ",".join(map(str, adjacentes))
 
                     # Envia as informações do novo vértice ao cliente
-                    await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}", websocket)
+                    await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}, Tipo: {vertice_atual.tipo}", websocket)
                 else:
                     await manager.send_message("Comando não reconhecido. Use 'ir: id_do_vertice' para se mover.", websocket)
             
@@ -287,25 +310,67 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
         await manager.broadcast(f"Grupo {grupo_id} desconectado.")
 
 @app.post("/generate-websocket/")
-async def generate_websocket_link(grupo_id: UUID, labirinto_id: int):
+async def generate_websocket_link(connection: WebsocketRequestDto):
     db = next(get_db())
-    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
-    labirinto = db.query(Labirinto).filter(Labirinto.id == labirinto_id).first()
+    grupo = db.query(Grupo).filter(Grupo.id == connection.grupo_id).first()
+    labirinto = db.query(Labirinto).filter(Labirinto.id == connection.labirinto_id).first()
 
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo não encontrado")
     if not labirinto:
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
     
-    ws_url = f"ws://localhost:8000/ws/{grupo_id}/{labirinto_id}"
+    ws_url = f"ws://localhost:8000/ws/{connection.grupo_id}/{connection.labirinto_id}"
     
     # Salva a sessão no banco de dados
-    sessao_ws = SessaoWebSocket(grupo_id=str(grupo_id), conexao=ws_url)
+    sessao_ws = SessaoWebSocket(grupo_id=str(connection.grupo_id), conexao=ws_url)
     db.add(sessao_ws)
     db.commit()
     
     return {"websocket_url": ws_url}
 
+@app.post("/resposta")
+async def enviar_resposta(resposta: RespostaDto):
+    db = next(get_db())
+    grupo = db.query(Grupo).filter(Grupo.id == resposta.grupo).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+
+    labirinto = db.query(Labirinto).filter(Labirinto.id == resposta.labirinto).first()
+    if not labirinto:
+        raise HTTPException(status_code=404, detail="Labirinto não encontrado")
+
+    vertices = resposta.vertices
+
+    # Verifica se o labirinto foi concluído
+    if vertices[0] != labirinto.entrada or vertices[-1] != labirinto.saida:
+        raise HTTPException(status_code=400, detail="Labirinto não foi concluído")
+
+    # Check if each consecutive pair in vertices list has an edge connecting them
+    for i in range(len(vertices) - 1):
+        vertice_atual_id = vertices[i]
+        vertice_proximo_id = vertices[i + 1]
+
+        # Query the database to check if there is an edge between vertice_atual_id and vertice_proximo_id
+        aresta = db.query(Aresta).filter(
+            Aresta.vertice_origem_id == vertice_atual_id,
+            Aresta.vertice_destino_id == vertice_proximo_id,
+            Aresta.labirinto_id == labirinto.id
+        ).first()
+
+        # If no edge exists between consecutive vertices, return an error
+        if not aresta:
+            raise HTTPException(status_code=400, detail=f"Caminho inválido: vértices {vertice_atual_id} e {vertice_proximo_id} não estão conectados")
+
+    # Se chegou até aqui, o caminho é válido e o labirinto foi concluído com sucesso
+    # (Aqui você pode marcar o labirinto como concluído ou atualizar o progresso do grupo)
+    grupo.labirintos_concluidos = grupo.labirintos_concluidos + f",{labirinto.id}" if grupo.labirintos_concluidos else str(labirinto.id)
+    db.add(grupo)
+    db.commit()
+
+    return {"message": "Labirinto concluído com sucesso"}
+
+    
 
 if __name__ == "__main__":
     import uvicorn
