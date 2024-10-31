@@ -4,7 +4,7 @@ from typing import Optional, List
 from uuid import UUID
 import uuid
 import asyncio
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, UUID as SQLUUID
+from sqlalchemy import create_engine, Column, Integer, Float, String, ForeignKey, UUID as SQLUUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.schema import PrimaryKeyConstraint
@@ -56,6 +56,8 @@ class Labirinto(Base):
     entrada = Column(Integer)
     dificuldade = Column(String)
 
+    info_grupos = relationship("InfoGrupo", back_populates="labirinto")
+
     def __repr__(self):
         return f"<Labirinto(id={self.id}, entrada={self.entrada}, dificuldade={self.dificuldade})>"
 
@@ -65,6 +67,23 @@ class Grupo(Base):
     id = Column(SQLUUID(as_uuid=True), primary_key=True)
     nome = Column(String)
     labirintos_concluidos = Column(String)  # Assuming labirintos_concluidos is stored as a comma-separated string
+    info_grupos = relationship("InfoGrupo", back_populates="grupo")
+
+
+class InfoGrupo(Base):
+    __tablename__ = 'info_grupos'
+
+    grupo_id = Column(SQLUUID(as_uuid=True), ForeignKey('grupos.id'), nullable = False)
+    labirinto_id = Column(Integer, ForeignKey('labirintos.id'), nullable = False)
+    passos = Column(Integer)
+    exploracao = Column(Float)
+
+    __table_args__ = (PrimaryKeyConstraint('grupo_id', 'labirinto_id', name='pk_info'),)
+
+    #Relacionamentos
+    grupo = relationship("Grupo", foreign_keys=[grupo_id], back_populates="info_grupos")
+    labirinto = relationship("Labirinto", foreign_keys=[labirinto_id], back_populates="info_grupos")
+
 
 class SessaoWebSocket(Base):
     __tablename__ = 'sessoes_websocket'
@@ -235,6 +254,7 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id: int):
     await manager.connect(websocket)
     db = next(get_db())
+    step_count = 1
 
     try:
         # Obtém o labirinto e seu vértice de entrada
@@ -293,7 +313,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
 
                     arestas = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
                     adjacentes = [{{a.vertice_destino_id},{a.peso}} for a in arestas]
-
+                    step_count += 1
                     # Envia o vértice de entrada e seus adjacentes para o cliente
                     await manager.send_message(f"Vértice atual: {vertice_atual.id}, Tipo: {vertice_atual.tipo}, Adjacentes(Vertice, Peso): {adjacentes}", websocket)
                 else:
@@ -306,6 +326,12 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                 break
 
     except WebSocketDisconnect:
+        grupo_info = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == str(grupo_id), InfoGrupo.labirinto_id == labirinto_id).first()
+        if grupo_info:
+            grupo_info.passos = step_count
+            grupo_info.exploracao = step_count / len(db.query(Vertice).filter(Vertice.labirinto_id == labirinto_id).all())
+            db.add(grupo_info)
+            db.commit()
         manager.disconnect(websocket)
         await manager.broadcast(f"Grupo {grupo_id} desconectado.")
 
