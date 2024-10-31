@@ -273,7 +273,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                         continue
 
                     # Verifica se o vértice desejado está nos adjacentes do vértice atual
-                    adjacentes = list(map(int, vertice_atual.adjacentes.split(",")))
+                    adjacentes = db.query(Aresta.vertice_destino_id).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
                     if vertice_desejado_id not in adjacentes:
                         await manager.send_message("Vértice inválido.", websocket)
                         continue
@@ -291,11 +291,11 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                         await manager.send_message("Vértice sem adjacentes.", websocket)
                         continue
 
-                    adjacentes = [a.vertice_destino_id for a in aresta]
-                    vertice_atual.adjacentes = ",".join(map(str, adjacentes))
+                    arestas = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
+                    adjacentes = [{{a.vertice_destino_id},{a.peso}} for a in arestas]
 
-                    # Envia as informações do novo vértice ao cliente
-                    await manager.send_message(f"Vértice atual: {vertice_atual.id}, Adjacentes: {vertice_atual.adjacentes.split(',')}, Tipo: {vertice_atual.tipo}", websocket)
+                    # Envia o vértice de entrada e seus adjacentes para o cliente
+                    await manager.send_message(f"Vértice atual: {vertice_atual.id}, Tipo: {vertice_atual.tipo}, Adjacentes(Vertice, Peso): {adjacentes}", websocket)
                 else:
                     await manager.send_message("Comando não reconhecido. Use 'ir: id_do_vertice' para se mover.", websocket)
             
