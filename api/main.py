@@ -51,7 +51,7 @@ class Vertice(Base):
 class Labirinto(Base):
     __tablename__ = 'labirintos'
     
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True)
     vertices = relationship("Vertice", back_populates="labirinto")
     entrada = Column(Integer)
     dificuldade = Column(String)
@@ -85,6 +85,7 @@ class ArestaModel(BaseModel):
     peso: int
 
 class LabirintoModel(BaseModel):
+    labirintoId: int
     vertices: List[VerticeModel]
     arestas: List[ArestaModel]
     entrada: int
@@ -171,7 +172,16 @@ async def registrar_grupo(grupo: CriarGrupoDto):
 @app.post("/labirinto")
 async def criar_labirinto(labirinto: LabirintoModel):
     db = next(get_db())
-    labirinto_db = Labirinto(entrada=labirinto.entrada, dificuldade=labirinto.dificuldade)
+
+    # Verifica se um labirinto com o labirintoId fornecido já existe
+    labirinto_existente = db.query(Labirinto).filter(Labirinto.id == labirinto.labirintoId).first()
+    
+    if labirinto_existente:
+        return {"error": "Labirinto com este ID já existe."}
+
+    # Usar o labirintoId fornecido pelo usuário
+    labirinto_db = Labirinto(id=labirinto.labirintoId, entrada=labirinto.entrada, dificuldade=labirinto.dificuldade)
+
     db.add(labirinto_db)
     db.commit()
     db.refresh(labirinto_db)
@@ -183,6 +193,7 @@ async def criar_labirinto(labirinto: LabirintoModel):
             tipo=vertice.tipo
         )
         db.add(vertice_db)
+
     for aresta in labirinto.arestas:
         aresta_db = Aresta(
             vertice_origem_id=aresta.origemId,
@@ -196,6 +207,7 @@ async def criar_labirinto(labirinto: LabirintoModel):
     db.refresh(vertice_db)
 
     return {"LabirintoId": labirinto_db.id}
+
 
 @app.get("/grupos")
 async def retorna_grupos():
