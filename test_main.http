@@ -19,81 +19,67 @@ Content-Type: application/json
     "vertices": [
         {
             "id": 0,
-            "labirintoId": 0,
             "tipo": 1
         },
         {
             "id": 1,
-            "labirintoId": 0,
             "tipo": 2
         },
         {
             "id": 2,
-            "labirintoId": 0,
             "tipo": 0
         },
         {
             "id": 3,
-            "labirintoId": 0,
             "tipo": 0
         },
         {
             "id": 4,
-            "labirintoId": 0,
             "tipo": 0
         }
     ],
     "arestas":[
         {
             "origemId": 0,
-            "labirintoId": 0,
             "destinoId": 2,
             "peso": 1
         },
         {
             "origemId": 0,
-            "labirintoId": 0,
             "destinoId": 3,
             "peso": 1
         },
         {
             "origemId": 1,
-            "labirintoId": 0,
             "destinoId": 2,
             "peso": 1
         },
         {
             "origemId": 2,
-            "labirintoId": 0,
             "destinoId": 0,
             "peso": 1
         },
         {
             "origemId": 2,
-            "labirintoId": 0,
             "destinoId": 1,
             "peso": 1
         },
         {
             "origemId": 3,
-            "labirintoId": 0,
             "destinoId": 0,
             "peso": 1
         },
         {
             "origemId": 3,
-            "labirintoId": 0,
             "destinoId": 4,
             "peso": 1
         },
         {
             "origemId": 4,
-            "labirintoId": 0,
             "destinoId": 3,
             "peso": 1
         }
     ],
-    "entrada": 0,
     "dificuldade": "Basiquinho e pequeno"
 }
 

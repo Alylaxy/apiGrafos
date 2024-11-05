@@ -190,7 +190,7 @@ async def registrar_grupo(grupo: CriarGrupoDto):
 @app.post("/labirinto")
 async def criar_labirinto(labirinto: LabirintoModel):
     db = next(get_db())
-    labirinto_db = Labirinto(entrada=labirinto.entrada, dificuldade=labirinto.dificuldade)
+    labirinto_db = Labirinto(entrada=0, dificuldade=labirinto.dificuldade)
     db.add(labirinto_db)
     db.commit()
     db.refresh(labirinto_db)
@@ -223,26 +223,50 @@ async def retorna_grupos():
     grupos_dto = [GrupoDto(id=grupo.id, nome=grupo.nome, labirintos_concluidos=[]) for grupo in grupos]
     return {"Grupos": grupos_dto}
 
-@app.get("/iniciar/{grupo_id}")
-async def iniciar_desafio(grupo_id: UUID):
-    db = next(get_db())
-    grupo_db = db.query(Grupo).filter(Grupo.id == grupo_id).first()
-    if not grupo_db:
-        raise HTTPException(status_code=404, detail="Grupo não encontrado")
-    
-    pass
+# @app.get("/iniciar/{grupo_id}")
+# async def iniciar_desafio(grupo_id: UUID):
+#     db = next(get_db())
+#     grupo_db = db.query(Grupo).filter(Grupo.id == grupo_id).first()
+#     if not grupo_db:
+#         raise HTTPException(status_code=404, detail="Grupo não encontrado")
+#     pass
 
 @app.get("/labirintos/{grupo_id}")
 async def get_labirintos(grupo_id: UUID):
     db = next(get_db())
-    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
-    labirintos = db.query(Labirinto).all()
-    if not grupo:
+    # Consultar as informações relacionadas ao grupo
+    informacoesGrupo = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == grupo_id).all()
+
+    # Verificar se o grupo foi encontrado
+    if not informacoesGrupo:
         raise HTTPException(status_code=404, detail="Grupo não encontrado")
-    
-    labirintos_dto = [LabirintoDto(LabirintoId = labirinto.id, Dificuldade = labirinto.dificuldade) for labirinto in labirintos]
-    
-    return {"Labirintos": labirintos_dto}
+
+    # Criar os DTOs para cada labirinto associado ao grupo
+    informacoesGrupoDto = []
+    for info in informacoesGrupo:
+        labirinto = info.labirinto  # Acessa o objeto Labirinto relacionado
+        grupo = info.grupo  # Acessa o objeto Grupo relacionado
+        
+        # Criar o DTO para cada InfoGrupo
+        labirintoDto = LabirintoDto(
+            LabirintoId=labirinto.id,  # Acessa o ID do labirinto
+            Dificuldade=labirinto.dificuldade,  # Acessa a dificuldade
+            Completo=labirinto.id in grupo.labirintos_concluidos.split(','),  # Verifica se o labirinto está concluído
+            Passos=info.passos,  # Acessa os passos
+            Exploracao=info.exploracao  # Acessa a exploração
+        )
+
+        informacoesGrupoDto.append(labirintoDto)
+
+    # Retorna os DTOs
+    return {"labirintos": informacoesGrupoDto}
+
+## TODO
+## FAZER PLACAR
+
+@app.get("/placar")
+async def get_placar():
+    pass
 
 @app.get("/sessoes")
 async def get_websocket_sessions():
@@ -333,6 +357,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             db.add(grupo_info)
             db.commit()
         manager.disconnect(websocket)
+        db.query(SessaoWebSocket).filter(SessaoWebSocket.conexao == websocket.url).delete()
         await manager.broadcast(f"Grupo {grupo_id} desconectado.")
 
 @app.post("/generate-websocket/")
@@ -361,15 +386,17 @@ async def enviar_resposta(resposta: RespostaDto):
     grupo = db.query(Grupo).filter(Grupo.id == resposta.grupo).first()
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo não encontrado")
-
-    labirinto = db.query(Labirinto).filter(Labirinto.id == resposta.labirinto).first()
-    if not labirinto:
-        raise HTTPException(status_code=404, detail="Labirinto não encontrado")
-
+    infoGrupos = grupo.info_grupos
+    labirintos = infoGrupos.labirinto
+    labirinto = labirintos.filter(Labirinto.id == resposta.labirinto).first()
+    
     vertices = resposta.vertices
-
+    
+    vertices_labirinto = labirinto.vertices
+    entrada = labirinto.entrada
+    saida = vertices_labirinto[-1].id 
     # Verifica se o labirinto foi concluído
-    if vertices[0] != labirinto.entrada or vertices[-1] != labirinto.saida:
+    if vertices[0] != entrada or vertices[-1] != saida:
         raise HTTPException(status_code=400, detail="Labirinto não foi concluído")
 
     # Check if each consecutive pair in vertices list has an edge connecting them
