@@ -16,6 +16,7 @@ POST http://localhost:8000/labirinto
 Content-Type: application/json
 
 {
+    "labirintoId": 0,
     "vertices": [
         {
             "id": 0,

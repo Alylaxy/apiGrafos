@@ -104,6 +104,7 @@ class ArestaModel(BaseModel):
     peso: int
 
 class LabirintoModel(BaseModel):
+    labirintoId: int
     vertices: List[VerticeModel]
     arestas: List[ArestaModel]
     entrada: int
@@ -202,6 +203,7 @@ async def criar_labirinto(labirinto: LabirintoModel):
             tipo=vertice.tipo
         )
         db.add(vertice_db)
+
     for aresta in labirinto.arestas:
         aresta_db = Aresta(
             vertice_origem_id=aresta.origemId,
@@ -215,6 +217,7 @@ async def criar_labirinto(labirinto: LabirintoModel):
     db.refresh(vertice_db)
 
     return {"LabirintoId": labirinto_db.id}
+
 
 @app.get("/grupos")
 async def retorna_grupos():
