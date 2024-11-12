@@ -185,7 +185,7 @@ async def registrar_grupo(grupo: CriarGrupoDto):
     grupo_db = Grupo(id=grupo_id, nome=grupo.nome)
     db.add(grupo_db)
     for labirinto in db.query(Labirinto).all():
-        info_grupo = InfoGrupo(grupo_id=grupo_id, labirinto_id=labirinto.id)
+        info_grupo = InfoGrupo(grupo_id=grupo_id, labirinto_id=labirinto.id, passos = 0, exploracao = 0)
         db.add(info_grupo)
     db.commit()
     grupo_dto = GrupoDto(id=grupo_db.id, nome=grupo_db.nome, labirintos_concluidos=[])
@@ -251,11 +251,11 @@ async def get_labirintos(grupo_id: UUID):
         
         # Criar o DTO para cada InfoGrupo
         labirintoDto = LabirintoDto(
-            LabirintoId=labirinto.id,  # Acessa o ID do labirinto
-            Dificuldade=labirinto.dificuldade,  # Acessa a dificuldade
-            Completo=labirinto.id in grupo.labirintos_concluidos.split(','),  # Verifica se o labirinto está concluído
-            Passos=info.passos,  # Acessa os passos
-            Exploracao=info.exploracao  # Acessa a exploração
+            LabirintoId=labirinto.id,
+            Dificuldade=labirinto.dificuldade,
+            Completo=labirinto.id in grupo.labirintos_concluidos.split(',') if grupo.labirintos_concluidos else False,
+            Passos=info.passos,
+            Exploracao=info.exploracao
         )
         informacoesGrupoDto.append(labirintoDto)
     # Retorna os DTOs
