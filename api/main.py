@@ -181,8 +181,12 @@ app = FastAPI()
 @app.post("/grupo")
 async def registrar_grupo(grupo: CriarGrupoDto):
     db = next(get_db())
-    grupo_db = Grupo(id=uuid.uuid4(), nome=grupo.nome)
+    grupo_id = uuid.uuid4()
+    grupo_db = Grupo(id=grupo_id, nome=grupo.nome)
     db.add(grupo_db)
+    for labirinto in db.query(Labirinto).all():
+        info_grupo = InfoGrupo(grupo_id=grupo_id, labirinto_id=labirinto.id)
+        db.add(info_grupo)
     db.commit()
     grupo_dto = GrupoDto(id=grupo_db.id, nome=grupo_db.nome, labirintos_concluidos=[])
     return {"GrupoId": grupo_dto.id}
