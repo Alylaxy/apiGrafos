@@ -407,10 +407,9 @@ async def generate_websocket_link(connection: WebsocketRequestDto):
     ws_url = f"ws://localhost:8000/ws/{connection.grupo_id}/{connection.labirinto_id}"
     
     # Salva a sessão no banco de dados
-    sessao_ws = SessaoWebSocket(grupo_id=str(connection.grupo_id), conexao=ws_url)
+    sessao_ws = SessaoWebSocket(grupo_id=connection.grupo_id, conexao=ws_url)
     db.add(sessao_ws)
     db.commit()
-    
     return {"websocket_url": ws_url}
 
 @app.post("/resposta")
@@ -454,7 +453,11 @@ async def enviar_resposta(resposta: RespostaDto):
 
     return {"message": "Labirinto concluído com sucesso"}
 
-    
+@app.delete("/apagar_tabelas")
+async def apagar_tabelas():
+    # Deletando todas as tabelas no banco de dados
+    Base.metadata.drop_all(engine)
+    return {"message": "Todas as tabelas foram apagadas!"}
 
 if __name__ == "__main__":
     import uvicorn
