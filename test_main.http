@@ -9,7 +9,7 @@ Content-Type: application/json
 }
 
 ### Mostra todos os grupos salvos no db (DEBUG)
-GET http://localhost:8000/grupos
+GET https://localhost:8000/grupos
 
 ### Criar labirinto pequeno
 POST http://localhost:8000/labirinto
@@ -2010,7 +2010,7 @@ Content-Type: application/json
     "dificuldade": "Intermediario"
 }
 ### Get labirintos information for a Grupo
-GET http://localhost:8000/labirintos/23042260-6f33-4c19-a063-0633be33bef6
+GET http://localhost:8000/labirintos/599e2458-17c8-45eb-ad06-3138f2b0cfb9
 
 ### Create a new WebSocket session
 POST http://localhost:8000/generate-websocket/

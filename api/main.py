@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, Column, Integer, Float, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.schema import PrimaryKeyConstraint
+from fastapi.middleware.cors import CORSMiddleware
 
 Base = declarative_base()
 
@@ -131,6 +132,9 @@ class GrupoDto(BaseModel):
     nome: str
     labirintos_concluidos: Optional[List[int]]
 
+    class Config:
+        orm_mode = True  # permite conversão automática de objetos ORM para JSON
+
 class CriarGrupoDto(BaseModel):
     nome: str
 
@@ -177,6 +181,14 @@ def get_db():
         db.close()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[""],  # Permite todas as origens. Troque "" por um domínio específico se necessário.
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos os métodos (GET, POST, etc.).
+    allow_headers=["*"],  # Permite todos os cabeçalhos.
+)
 
 @app.post("/grupo")
 async def registrar_grupo(grupo: CriarGrupoDto):
@@ -407,7 +419,7 @@ async def generate_websocket_link(connection: WebsocketRequestDto):
     ws_url = f"ws://localhost:8000/ws/{connection.grupo_id}/{connection.labirinto_id}"
     
     # Salva a sessão no banco de dados
-    sessao_ws = SessaoWebSocket(grupo_id=str(connection.grupo_id), conexao=ws_url)
+    sessao_ws = SessaoWebSocket(grupo_id=connection.grupo_id, conexao=ws_url)
     db.add(sessao_ws)
     db.commit()
     
