@@ -1,5 +1,3 @@
-# Test your FastAPI endpoints
-
 ### Create a new Grupo
 POST http://localhost:8000/grupo
 Content-Type: application/json
@@ -9,7 +7,10 @@ Content-Type: application/json
 }
 
 ### Mostra todos os grupos salvos no db (DEBUG)
-GET https://localhost:8000/grupos
+GET http://localhost:8000/grupos
+
+### Listar todos os labirintos
+GET http://localhost:8000/labirintos
 
 ### Criar labirinto pequeno
 POST http://localhost:8000/labirinto

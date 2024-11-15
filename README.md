@@ -1,106 +1,232 @@
-# Documentação de como usar a API para participar do desafio
+# **Documentação da API**
 
-## Endpoints
+## **Introdução**
 
-### POST "/grupo"
-#### Endpoint para cadastrar o grupo.
-#### Body:
-  ```JSON
-    {
-        "Nome" : "[Nome do Grupo]"
-    }
-  ```
-#### Response:
-  ```JSON
-    {
-        "Id" : "3F4365C5-77F1-405E-A6F2-66BE20521A40"
-    }
-  ```
-### POST "/generate-websocket/"
-#### Endpoint para começar o desafio para percorrer o labirinto.
-#### Request Params:
-    ```JSON
-    {
-      "grupo_id": "[Id do Grupo]",
-      "labirinto_id": "[Id do Labirinto]"
-    }
-    ```
-#### Response:
-  ```JSON
+Esta API permite a criação e gerenciamento de grupos, labirintos e sessões de jogo, além de monitorar progressos e interações em tempo real.
+
+### **Base URL**
+
+`http://localhost:8000`
+
+---
+
+## **Endpoints**
+
+### **1. Registrar Grupo**
+
+- **Método:** `POST`
+- **URL:** `/grupo`
+- **Descrição:** Cria um novo grupo e inicializa informações relacionadas a todos os labirintos existentes.
+- **Body (JSON):**
+
+  ```json
   {
-    "Conexao" : "ws://localhost:8000/ws/link-pro-handshake-inicial/"
+    "nome": "Nome do grupo"
   }
   ```
 
-### GET "/labirintos/{Id}"
-#### Retorna todos os labirintos disponíveis com dados do grupo escolhido.
-#### Request Params:
-    "[Id do Grupo]"
-#### Response:
-  ```JSON
+- **Resposta (JSON):**
+
+  ```json
   {
-    "Labirintos" : [
+    "GrupoId": "UUID do grupo criado"
+  }
+  ```
+
+### **2. Criar Labirinto**
+
+- **Método:** `POST`
+- **URL:** `/labirinto`
+- **Descrição:** Cria um novo labirinto com seus vértices e arestas.
+- **Body (JSON):**
+
+  ```json
+  {
+    "dificuldade": "Nível de dificuldade",
+    "vertices": 
+    [
       {
-        "IdLabirinto" : 0,
-        "Dificuldade" : "TesteAqui",
-        "Completo" : false
+        "id": 1, 
+        "tipo": "entrada"
       },
       {
-        "IdLabirinto" : 1,
-        "Dificuldade" : "ChoreAqui",
-        "Completo" : true
-      },
+        "id": 2, 
+        "tipo": "saida"
+      }
+    ],
+    "arestas": 
+    [
       {
-        "IdLabirinto" : 2,
-        "Dificuldade" : "PisouNoLego",
-        "Completo" : false
+        "origemId": 1, 
+        "destinoId": 2, 
+        "peso": 1}
+    ]
+  }
+  ```
+
+- **Resposta (JSON):**
+
+  ```json
+  {
+    "LabirintoId": "ID do labirinto criado"
+  }
+  ```
+  
+### **3. Listar Grupos**
+
+- **Método:** `GET`
+- **URL:** `/grupos`
+- **Descrição:** Retorna uma lista de todos os grupos.
+- **Resposta (JSON):**
+
+  ```json
+  {
+    "Grupos": 
+    [
+      {
+        "id": "UUID", 
+        "nome": "Nome do grupo", 
+        "labirintos_concluidos": []
       }
     ]
   }
   ```
 
-  ## Vale lembrar que você pode acessar o link localhost:8000/docs# que terá uma descrição atualizada dos endpoints do seu programa
+### **4. Listar Labirintos**
 
----
-## Comportamento WebSocket
-### Ao se conectar ao WebSocket, um JSON será enviado pelo servidor com as informações do labirinto.
-### Formato:
-```json
-{
-  "IdLabirinto" : 0,
-  "Dificuldade" : "TesteAqui",
-  "Entrada" : 0
-}
-```
-### O campo "Entrada" é o Id do vértice de entrada do labirinto.
+- **Método:** `GET`
+- **URL:** `/labirintos`
+- **Descrição:** Retorna uma lista de todos os labirintos.
+- **Resposta (JSON):**
 
-## Comandos do WebSocket
-### "Ir:[Id do vérticce]"
-#### Comando para se mover para um vértice vizinho.
-> Atenção!
-> Ao entrar no websocket, o primeiro vértice será a posição atual do usuário
-> O JSON a seguir será enviado assim que entrar, junto com o anterior.
+  ```json
+  {
+    "labirintos": 
+    [
+      {
+        "labirinto": 1, 
+        "dificuldade": "Nível de dificuldade"
+      }
+    ]
+  }
+  ```
 
-#### Response:
-```json
-{
-  "Id" : 0,
-  "Adjacencia" : [
-    [1, 3],
-    [2, 13],
-    [4, 7]
-  ],
-  "Tipo" : 2,
-  "Labirinto" : 0
-}
-```
+### **5. Informações de Labirintos por Grupo**
 
-#### O campo "Adjacencia" é um array com os Ids dos vértices vizinhos, e o peso de travessia.
-#### O campo "Tipo" é o tipo de vértice:
-  - 0: Normal
-  - 1: Saída
-  - 2: Entrada
-#### O campo "Labirinto" é o Id do labirinto.
+- **Método:** `GET`
+- **URL:** `/labirintos/{grupo_id}`
+- **Descrição:** Retorna os labirintos associados a um grupo específico.
+- **Parâmetros:**
+  - `grupo_id`: UUID do grupo
+- **Resposta (JSON):**
 
-### "Desconectar"
-#### Comando para desconectar do WebSocket. O servidor irá fechar a conexão.
+  ```json
+  {
+    "labirintos": 
+    [
+      {
+        "LabirintoId": 1,
+        "Dificuldade": "Nível de dificuldade",
+        "Completo": false,
+        "Passos": 0,
+        "Exploracao": 0
+      }
+    ]
+  }
+  ```
+
+### **6. Placar Geral**
+
+- **Método:** `GET`
+- **URL:** `/placar`
+- **Descrição:** Retorna o progresso de todos os grupos em todos os labirintos.
+- **Resposta (JSON):**
+
+  ```json
+  [
+    {
+      "grupo": "Nome do grupo",
+      "labirintos": 
+      [
+        {
+          "labirinto": 1, 
+          "passos": 10, 
+          "exploracao": 0.5
+        }
+      ]
+    }
+  ]
+  ```
+
+### **7. WebSocket Sessions**
+
+- **Método:** `GET`
+- **URL:** `/sessoes`
+- **Descrição:** Retorna as sessões WebSocket ativas.
+- **Resposta (JSON):**
+
+  ```json
+  [
+    {
+      "id": 1,
+      "grupo_id": "UUID do grupo",
+      "conexao": "ws://...",
+      "grupo_nome": "Nome do grupo"
+    }
+  ]
+  ```
+
+### **8. WebSocket para Labirinto**
+
+- **Método:** `WebSocket`
+- **URL:** `/ws/{grupo_id}/{labirinto_id}`
+- **Descrição:** Permite interações em tempo real com um labirinto.
+- **Mensagens de Cliente:**
+  - `"ir: id_do_vertice"`: Move para um vértice conectado.
+- **Mensagens de Servidor:**
+  - Estado atual: `"Vértice atual: 1, Tipo: entrada, Adjacentes(Vertice, Peso): [(2, 1)]"`
+
+### **9. Gerar Link WebSocket**
+
+- **Método:** `POST`
+- **URL:** `/generate-websocket`
+- **Descrição:** Gera um link WebSocket para interação em tempo real.
+- **Body (JSON):**
+
+  ```json
+  {
+    "grupo_id": "UUID do grupo",
+    "labirinto_id": 1
+  }
+  ```
+
+- **Resposta (JSON):**
+
+  ```json
+  {
+    "websocket_url": "ws://localhost:8000/ws/{grupo_id}/{labirinto_id}"
+  }
+  ```
+
+### **10. Finalizar Labirinto**
+
+- **Método:** `POST`
+- **URL:** `/resposta`
+- **Descrição:** Valida o percurso finalizado de um labirinto por um grupo.
+- **Body (JSON):**
+
+  ```json
+  {
+    "grupo": "UUID do grupo",
+    "labirinto": 1,
+    "vertices": [1, 2]
+  }
+  ```
+
+- **Resposta (JSON):**
+
+  ```json
+  {
+    "message": "Labirinto concluído com sucesso"
+  }
+  ```
