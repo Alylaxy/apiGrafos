@@ -147,6 +147,10 @@ class RespostaDto(BaseModel):
     grupo: UUID
     vertices: List[int]
 
+class RetornaLabirintosDto(BaseModel):
+    labirinto: int
+    dificuldade: str
+
 # Websocket manager
 class ConnectionManager:
     def __init__(self):
@@ -239,8 +243,22 @@ async def retorna_grupos():
     grupos_dto = [GrupoDto(id=grupo.id, nome=grupo.nome, labirintos_concluidos=[]) for grupo in grupos]
     return {"Grupos": grupos_dto}
 
+@app.get("/labirintos")
+async def get_labirintos():
+    db = next(get_db())
+    labirintos = db.query(Labirinto).all()
+    
+    if not labirintos:
+        print("Nenhum labirinto encontrado no banco de dados.")
+    
+    lista_labirintos = []
+    for labirinto in labirintos:
+        print(f"Labirinto encontrado: ID={labirinto.id}, Dificuldade={labirinto.dificuldade}")
+        lista_labirintos.append(RetornaLabirintosDto(labirinto=labirinto.id, dificuldade=labirinto.dificuldade))    
+    return {"labirintos": lista_labirintos}
+
 @app.get("/labirintos/{grupo_id}")
-async def get_labirintos(grupo_id: UUID):
+async def get_info_labirintos(grupo_id: UUID):
     db = next(get_db())
     # Consultar as informações relacionadas ao grupo
     informacoesGrupo = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == grupo_id).all()
