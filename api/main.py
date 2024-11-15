@@ -239,14 +239,6 @@ async def retorna_grupos():
     grupos_dto = [GrupoDto(id=grupo.id, nome=grupo.nome, labirintos_concluidos=[]) for grupo in grupos]
     return {"Grupos": grupos_dto}
 
-@app.get("/iniciar/{grupo_id}")
-async def iniciar_desafio(grupo_id: UUID):
-    db = next(get_db())
-    grupo_db = db.query(Grupo).filter(Grupo.id == grupo_id).first()
-    if not grupo_db:
-        raise HTTPException(status_code=404, detail="Grupo não encontrado")
-    pass
-
 @app.get("/labirintos/{grupo_id}")
 async def get_labirintos(grupo_id: UUID):
     db = next(get_db())
@@ -273,8 +265,6 @@ async def get_labirintos(grupo_id: UUID):
     # Retorna os DTOs
     return {"labirintos": informacoesGrupoDto}
 
-## TODO
-## FAZER PLACAR
 @app.get("/placar")
 async def get_placar():
     db = next(get_db())
