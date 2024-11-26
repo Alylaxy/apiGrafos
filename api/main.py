@@ -55,6 +55,7 @@ class Labirinto(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     vertices = relationship("Vertice", back_populates="labirinto")
     entrada = Column(Integer)
+    saida = Column(String)
     dificuldade = Column(String)
 
     info_grupos = relationship("InfoGrupo", back_populates="labirinto")
@@ -221,6 +222,9 @@ async def criar_labirinto(labirinto: LabirintoModel):
             labirinto_id=labirinto_db.id,
             tipo=vertice.tipo
         )
+        if vertice.tipo == 2:
+            labirinto_db.saida = (labirinto_db.saida or "") + f"{vertice.id}, "
+
         db.add(vertice_db)
     for aresta in labirinto.arestas:
         aresta_db = Aresta(
@@ -445,9 +449,9 @@ async def enviar_resposta(resposta: RespostaDto):
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
 
     vertices = resposta.vertices
-
+    saida = [int(s) for s in labirinto.saida.split(",") if s]
     # Verifica se o labirinto foi concluído
-    if vertices[0] != labirinto.entrada or vertices[-1] != labirinto.saida:
+    if vertices[0] != labirinto.entrada or vertices[-1] not in saida:
         raise HTTPException(status_code=400, detail="Labirinto não foi concluído")
 
     # Check if each consecutive pair in vertices list has an edge connecting them
