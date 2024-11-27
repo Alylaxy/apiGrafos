@@ -2018,7 +2018,7 @@ POST http://localhost:8000/generate-websocket/
 Content-Type: application/json
 
 {
-    "grupo_id": "23042260-6f33-4c19-a063-0633be33bef6",
+    "grupo_id": "32cc4b43-7f8a-4cbf-af34-73a856238230",
     "labirinto_id": "0"
 }
 
@@ -2027,3 +2027,13 @@ GET http://localhost:8000/sessoes
 
 ### Get Placar
 GET http://localhost:8000/placar
+
+### Resposta labirinto pequeno
+POST http://localhost:8000/resposta
+Content-Type: application/json
+
+{
+    "labirinto": 1,
+    "grupo": "32cc4b43-7f8a-4cbf-af34-73a856238230",
+    "vertices": [0, 2, 1]
+}

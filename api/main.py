@@ -449,7 +449,7 @@ async def enviar_resposta(resposta: RespostaDto):
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
 
     vertices = resposta.vertices
-    saida = [int(s) for s in labirinto.saida.split(",") if s]
+    saida = [int(s) for s in labirinto.saida.split(",") if s.strip()]
     # Verifica se o labirinto foi concluído
     if vertices[0] != labirinto.entrada or vertices[-1] not in saida:
         raise HTTPException(status_code=400, detail="Labirinto não foi concluído")
