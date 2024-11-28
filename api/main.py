@@ -244,7 +244,10 @@ async def criar_labirinto(labirinto: LabirintoModel):
 async def retorna_grupos():
     db = next(get_db())
     grupos = db.query(Grupo).all()
-    grupos_dto = [GrupoDto(id=grupo.id, nome=grupo.nome, labirintos_concluidos=[]) for grupo in grupos]
+    grupos_dto = [GrupoDto(id=grupo.id,
+                           nome=grupo.nome, 
+                           labirintos_concluidos=grupo.labirintos_concluidos.split(",") if grupo.labirintos_concluidos else []) 
+                           for grupo in grupos]
     return {"Grupos": grupos_dto}
 
 @app.get("/labirintos")
