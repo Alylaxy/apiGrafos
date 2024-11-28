@@ -470,17 +470,6 @@ async def enviar_resposta(resposta: RespostaDto):
         vertice_atual_id = vertices[i]
         vertice_proximo_id = vertices[i + 1]
 
-        # Query the database to check if there is an edge between vertice_atual_id and vertice_proximo_id
-        aresta = db.query(Aresta).filter(
-            Aresta.labirinto_id == labirinto.id,
-            ((Aresta.vertice_origem_id == vertice_atual_id) & (Aresta.vertice_destino_id == vertice_proximo_id)) |
-            ((Aresta.vertice_origem_id == vertice_proximo_id) & (Aresta.vertice_destino_id == vertice_atual_id))
-        ).first()
-
-        # If no edge exists between consecutive vertices, return an error
-        if not aresta:
-            raise HTTPException(status_code=400, detail=f"Caminho inválido: vértices {vertice_atual_id} e {vertice_proximo_id} não estão conectados")
-
     # Se chegou até aqui, o caminho é válido e o labirinto foi concluído com sucesso
     # (Aqui você pode marcar o labirinto como concluído ou atualizar o progresso do grupo)
     grupo.labirintos_concluidos = grupo.labirintos_concluidos + f",{labirinto.id}" if grupo.labirintos_concluidos else str(labirinto.id)
