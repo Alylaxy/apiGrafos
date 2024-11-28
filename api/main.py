@@ -472,9 +472,9 @@ async def enviar_resposta(resposta: RespostaDto):
 
         # Query the database to check if there is an edge between vertice_atual_id and vertice_proximo_id
         aresta = db.query(Aresta).filter(
-            Aresta.vertice_origem_id == vertice_atual_id,
-            Aresta.vertice_destino_id == vertice_proximo_id,
-            Aresta.labirinto_id == labirinto.id
+            Aresta.labirinto_id == labirinto.id,
+            ((Aresta.vertice_origem_id == vertice_atual_id) & (Aresta.vertice_destino_id == vertice_proximo_id)) |
+            ((Aresta.vertice_origem_id == vertice_proximo_id) & (Aresta.vertice_destino_id == vertice_atual_id))
         ).first()
 
         # If no edge exists between consecutive vertices, return an error
