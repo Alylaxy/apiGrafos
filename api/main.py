@@ -189,10 +189,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[""],  # Permite todas as origens. Troque "" por um domínio específico se necessário.
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos os métodos (GET, POST, etc.).
-    allow_headers=["*"],  # Permite todos os cabeçalhos.
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/grupo")
@@ -316,10 +316,16 @@ async def get_placar():
 
 
 @app.get("/sessoes")
-async def get_websocket_sessions():
-    db = next(get_db())  # Manually obtain database session
-    sessoes = db.query(SessaoWebSocket).all()
-    
+async def get_websocket_sessions(nome_grupo: Optional[str] = None):
+    db = next(get_db())  # Obtém manualmente a sessão do banco de dados
+    query = db.query(SessaoWebSocket)
+
+    # Filtra pelo nome do grupo, se fornecido
+    if nome_grupo:
+        query = query.join(Grupo).filter(Grupo.nome.ilike(f"%{nome_grupo}%"))
+
+    sessoes = query.all()
+
     result = []
     for sessao in sessoes:
         result.append({
@@ -328,7 +334,7 @@ async def get_websocket_sessions():
             "conexao": sessao.conexao,
             "grupo_nome": sessao.grupo.nome if sessao.grupo else None
         })
-    
+
     return result
 
 
@@ -431,7 +437,7 @@ async def generate_websocket_link(connection: WebsocketRequestDto):
     if not labirinto:
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
     
-    ws_url = f"ws://localhost:8000/ws/{connection.grupo_id}/{connection.labirinto_id}"
+    ws_url = f"ws://https://apigrafos.onrender.com/ws/{connection.grupo_id}/{connection.labirinto_id}"
     
     # Salva a sessão no banco de dados
     sessao_ws = SessaoWebSocket(grupo_id=connection.grupo_id, conexao=ws_url)
