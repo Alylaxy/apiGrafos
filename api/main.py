@@ -439,7 +439,7 @@ async def generate_websocket_link(connection: WebsocketRequestDto):
     if not labirinto:
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
     
-    ws_url = f"ws://apigrafos.onrender.com/ws/{connection.grupo_id}/{connection.labirinto_id}"
+    ws_url = f"wss://apigrafos.onrender.com/ws/{connection.grupo_id}/{connection.labirinto_id}"
     
     # Salva a sessão no banco de dados
     sessao_ws = SessaoWebSocket(grupo_id=connection.grupo_id, conexao=ws_url)
