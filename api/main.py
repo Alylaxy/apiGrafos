@@ -189,10 +189,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[""],  # Permite todas as origens. Troque "" por um domínio específico se necessário.
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos os métodos (GET, POST, etc.).
-    allow_headers=["*"],  # Permite todos os cabeçalhos.
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/grupo")
@@ -244,7 +244,10 @@ async def criar_labirinto(labirinto: LabirintoModel):
 async def retorna_grupos():
     db = next(get_db())
     grupos = db.query(Grupo).all()
-    grupos_dto = [GrupoDto(id=grupo.id, nome=grupo.nome, labirintos_concluidos=[]) for grupo in grupos]
+    grupos_dto = [GrupoDto(id=grupo.id,
+                           nome=grupo.nome, 
+                           labirintos_concluidos=grupo.labirintos_concluidos.split(",") if grupo.labirintos_concluidos else []) 
+                           for grupo in grupos]
     return {"Grupos": grupos_dto}
 
 @app.get("/labirintos")
@@ -313,10 +316,16 @@ async def get_placar():
 
 
 @app.get("/sessoes")
-async def get_websocket_sessions():
-    db = next(get_db())  # Manually obtain database session
-    sessoes = db.query(SessaoWebSocket).all()
-    
+async def get_websocket_sessions(nome_grupo: Optional[str] = None):
+    db = next(get_db())  # Obtém manualmente a sessão do banco de dados
+    query = db.query(SessaoWebSocket)
+
+    # Filtra pelo nome do grupo, se fornecido
+    if nome_grupo:
+        query = query.join(Grupo).filter(Grupo.nome.ilike(f"%{nome_grupo}%"))
+
+    sessoes = query.all()
+
     result = []
     for sessao in sessoes:
         result.append({
@@ -325,7 +334,7 @@ async def get_websocket_sessions():
             "conexao": sessao.conexao,
             "grupo_nome": sessao.grupo.nome if sessao.grupo else None
         })
-    
+
     return result
 
 
@@ -344,7 +353,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             await websocket.send_text("Labirinto não encontrado.")
             await manager.disconnect(websocket)
             return
-
+        historico = [0]
         # Obtém o vértice de entrada
         vertice_atual = db.query(Vertice).filter(Vertice.labirinto_id == labirinto_id, Vertice.id == labirinto.entrada).first()
 
@@ -364,7 +373,8 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             try:
                 # Espera por uma mensagem do cliente com timeout de 60 segundos
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
-                
+                if data.startswith("historico"):
+                    await manager.send_message(str(historico), websocket)
                 if data.startswith("ir:"):
                     # Extrai o id do vértice desejado
                     try:
@@ -395,6 +405,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                     arestas = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
                     adjacentes = [(a.vertice_destino_id, a.peso) for a in arestas]
                     step_count += 1
+                    historico.append(vertice_atual.id)
                     # Envia o vértice de entrada e seus adjacentes para o cliente
                     await manager.send_message(f"Vértice atual: {vertice_atual.id}, Tipo: {vertice_atual.tipo}, Adjacentes(Vertice, Peso): {adjacentes}", websocket)
                 else:
@@ -434,7 +445,7 @@ async def generate_websocket_link(connection: WebsocketRequestDto):
     if not labirinto:
         raise HTTPException(status_code=404, detail="Labirinto não encontrado")
     
-    ws_url = f"ws://localhost:8000/ws/{connection.grupo_id}/{connection.labirinto_id}"
+    ws_url = f"wss://apigrafos.onrender.com/ws/{connection.grupo_id}/{connection.labirinto_id}"
     
     # Salva a sessão no banco de dados
     sessao_ws = SessaoWebSocket(grupo_id=connection.grupo_id, conexao=ws_url)
@@ -464,17 +475,6 @@ async def enviar_resposta(resposta: RespostaDto):
     for i in range(len(vertices) - 1):
         vertice_atual_id = vertices[i]
         vertice_proximo_id = vertices[i + 1]
-
-        # Query the database to check if there is an edge between vertice_atual_id and vertice_proximo_id
-        aresta = db.query(Aresta).filter(
-            Aresta.vertice_origem_id == vertice_atual_id,
-            Aresta.vertice_destino_id == vertice_proximo_id,
-            Aresta.labirinto_id == labirinto.id
-        ).first()
-
-        # If no edge exists between consecutive vertices, return an error
-        if not aresta:
-            raise HTTPException(status_code=400, detail=f"Caminho inválido: vértices {vertice_atual_id} e {vertice_proximo_id} não estão conectados")
 
     # Se chegou até aqui, o caminho é válido e o labirinto foi concluído com sucesso
     # (Aqui você pode marcar o labirinto como concluído ou atualizar o progresso do grupo)

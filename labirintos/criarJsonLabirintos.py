@@ -2,7 +2,7 @@ import random
 import json
 
 def gerar_labirinto(labirinto_id, num_vertices, num_saidas, direcional=True, com_peso=False):
-    vertices = [{"id": i, "labirintoId": labirinto_id, "tipo": 0} for i in range(num_vertices)]
+    vertices = [{"id": i, "tipo": 0} for i in range(num_vertices)]
     vertices[0]["tipo"] = 1  # Entrada (sempre o vértice 0)
     
     saidas_ids = random.sample(range(1, num_vertices), num_saidas)
@@ -22,7 +22,6 @@ def gerar_labirinto(labirinto_id, num_vertices, num_saidas, direcional=True, com
         
         arestas.append({
             "origemId": origem,
-            "labirintoId": labirinto_id,
             "destinoId": destino,
             "peso": obter_peso()
         })
@@ -30,7 +29,6 @@ def gerar_labirinto(labirinto_id, num_vertices, num_saidas, direcional=True, com
         if not direcional:
             arestas.append({
                 "origemId": destino,
-                "labirintoId": labirinto_id,
                 "destinoId": origem,
                 "peso": obter_peso()
             })
@@ -42,7 +40,6 @@ def gerar_labirinto(labirinto_id, num_vertices, num_saidas, direcional=True, com
             if not any(a["origemId"] == vertice and a["destinoId"] == 0 for a in arestas):
                 arestas.append({
                     "origemId": vertice,
-                    "labirintoId": labirinto_id,
                     "destinoId": 0,
                     "peso": obter_peso()
                 })
@@ -57,7 +54,6 @@ def gerar_labirinto(labirinto_id, num_vertices, num_saidas, direcional=True, com
                     if not any(a["origemId"] == origem and a["destinoId"] == destino for a in arestas):
                         arestas.append({
                             "origemId": origem,
-                            "labirintoId": labirinto_id,
                             "destinoId": destino,
                             "peso": obter_peso()
                         })
@@ -66,18 +62,17 @@ def gerar_labirinto(labirinto_id, num_vertices, num_saidas, direcional=True, com
                                (a["origemId"] == destino and a["destinoId"] == origem) for a in arestas):
                         arestas.append({
                             "origemId": origem,
-                            "labirintoId": labirinto_id,
                             "destinoId": destino,
                             "peso": obter_peso()
                         })
                         arestas.append({
                             "origemId": destino,
-                            "labirintoId": labirinto_id,
                             "destinoId": origem,
                             "peso": obter_peso()
                         })
 
     labirinto = {
+        "labirintoId": labirinto_id,
         "vertices": vertices,
         "arestas": arestas,
         "entrada": 0,
