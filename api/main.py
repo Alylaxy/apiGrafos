@@ -402,6 +402,12 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             
             except asyncio.TimeoutError:
                 # Timeout de 60 segundos sem mensagem, desconecta o WebSocket
+                grupo_info = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == str(grupo_id), InfoGrupo.labirinto_id == labirinto_id).first()
+                if grupo_info:
+                    grupo_info.passos = step_count
+                    grupo_info.exploracao = step_count / len(db.query(Vertice).filter(Vertice.labirinto_id == labirinto_id).all())
+                    db.add(grupo_info)
+                    db.commit()
                 await manager.send_message("Conexão encerrada por inatividade.", websocket)
                 await manager.disconnect(websocket)
                 break
