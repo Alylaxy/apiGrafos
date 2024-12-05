@@ -14,7 +14,7 @@ Base = declarative_base()
 
 # SQLAlchemy models
 class Aresta(Base):
-    __tablename__ = 'arestas'
+    _tablename_ = 'arestas'
 
     vertice_origem_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
     vertice_destino_id = Column(Integer, ForeignKey('vertices.id'), nullable=False)
@@ -22,17 +22,17 @@ class Aresta(Base):
     labirinto_id = Column(Integer, ForeignKey('labirintos.id'),nullable=False)
 
     # Definindo a chave primária composta
-    __table_args__ = (PrimaryKeyConstraint('vertice_origem_id', 'vertice_destino_id', 'labirinto_id', name='pk_aresta'),)
+    _table_args_ = (PrimaryKeyConstraint('vertice_origem_id', 'vertice_destino_id', 'labirinto_id', name='pk_aresta'),)
 
     # Relacionamentos
     vertice_origem = relationship("Vertice", foreign_keys=[vertice_origem_id])
     vertice_destino = relationship("Vertice", foreign_keys=[vertice_destino_id])
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<Aresta(origem={self.vertice_origem_id}, destino={self.vertice_destino_id}, peso={self.peso})>"
 
 class Vertice(Base):
-    __tablename__ = 'vertices'
+    _tablename_ = 'vertices'
 
     id = Column(Integer, nullable=False)
     labirinto_id = Column(Integer, ForeignKey('labirintos.id'), nullable=False)
@@ -44,13 +44,13 @@ class Vertice(Base):
     arestas_origem = relationship("Aresta", foreign_keys=[Aresta.vertice_origem_id], back_populates="vertice_origem")
     arestas_destino = relationship("Aresta", foreign_keys=[Aresta.vertice_destino_id], back_populates="vertice_destino")
 
-    __table_args__ = (PrimaryKeyConstraint('id', 'labirinto_id', name='pk_vertice'),)
+    _table_args_ = (PrimaryKeyConstraint('id', 'labirinto_id', name='pk_vertice'),)
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<Vertice(id={self.id}, labirinto_id={self.labirinto_id})>"
 
 class Labirinto(Base):
-    __tablename__ = 'labirintos'
+    _tablename_ = 'labirintos'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     vertices = relationship("Vertice", back_populates="labirinto")
@@ -60,11 +60,11 @@ class Labirinto(Base):
 
     info_grupos = relationship("InfoGrupo", back_populates="labirinto")
 
-    def __repr__(self):
+    def _repr_(self):
         return f"<Labirinto(id={self.id}, entrada={self.entrada}, dificuldade={self.dificuldade})>"
 
 class Grupo(Base):
-    __tablename__ = 'grupos'
+    _tablename_ = 'grupos'
     
     id = Column(SQLUUID(as_uuid=True), primary_key=True)
     nome = Column(String)
@@ -73,14 +73,14 @@ class Grupo(Base):
     sessoes_websocket = relationship("SessaoWebSocket", back_populates="grupo")  
 
 class InfoGrupo(Base):
-    __tablename__ = 'info_grupos'
+    _tablename_ = 'info_grupos'
 
     grupo_id = Column(SQLUUID(as_uuid=True), ForeignKey('grupos.id'), nullable = False)
     labirinto_id = Column(Integer, ForeignKey('labirintos.id'), nullable = False)
     passos = Column(Integer)
     exploracao = Column(Float)
 
-    __table_args__ = (PrimaryKeyConstraint('grupo_id', 'labirinto_id', name='pk_info'),)
+    _table_args_ = (PrimaryKeyConstraint('grupo_id', 'labirinto_id', name='pk_info'),)
 
     #Relacionamentos
     grupo = relationship("Grupo", foreign_keys=[grupo_id], back_populates="info_grupos")
@@ -88,7 +88,7 @@ class InfoGrupo(Base):
 
 
 class SessaoWebSocket(Base):
-    __tablename__ = 'sessoes_websocket'
+    _tablename_ = 'sessoes_websocket'
     
     id = Column(Integer, primary_key=True, unique=True, autoincrement=True)
     grupo_id = Column(SQLUUID, ForeignKey('grupos.id'))  # Use String type for UUID
@@ -154,7 +154,7 @@ class RetornaLabirintosDto(BaseModel):
 
 # Websocket manager
 class ConnectionManager:
-    def __init__(self):
+    def _init_(self):
         self.active_connections: List[WebSocket] = []
 
     async def connect(self, websocket: WebSocket):
@@ -250,6 +250,21 @@ async def retorna_grupos():
                            for grupo in grupos]
     return {"Grupos": grupos_dto}
 
+@app.get("/labirintos/{labirinto_id}/arestas", response_model=List[dict])
+def get_arestas(labirinto_id: int):
+    db = next(get_db())
+    arestas = db.query(Aresta).filter(Aresta.labirinto_id == labirinto_id).all()
+    if not arestas:
+        raise HTTPException(status_code=404, detail="Labirinto não encontrado ou sem arestas.")
+    return [
+        {
+            "origem": aresta.vertice_origem_id,
+            "destino": aresta.vertice_destino_id,
+            "peso": aresta.peso
+        }
+        for aresta in arestas
+    ]
+
 @app.get("/labirintos")
 async def get_labirintos():
     db = next(get_db())
@@ -289,21 +304,6 @@ async def get_info_labirintos(grupo_id: UUID):
         informacoesGrupoDto.append(labirintoDto)
     # Retorna os DTOs
     return {"labirintos": informacoesGrupoDto}
-
-@app.get("/labirintos/{labirinto_id}/arestas", response_model=List[dict])
-def get_arestas(labirinto_id: int):
-    db = next(get_db())
-    arestas = db.query(Aresta).filter(Aresta.labirinto_id == labirinto_id).all()
-    if not arestas:
-        raise HTTPException(status_code=404, detail="Labirinto não encontrado ou sem arestas.")
-    return [
-        {
-            "origem": aresta.vertice_origem_id,
-            "destino": aresta.vertice_destino_id,
-            "peso": aresta.peso
-        }
-        for aresta in arestas
-    ]
 
 @app.get("/placar")
 async def get_placar():
@@ -468,23 +468,6 @@ async def generate_websocket_link(connection: WebsocketRequestDto):
     
     return {"websocket_url": ws_url}
 
-@app.get("/placar/{grupo_id}")
-async def get_placar_por_grupo(grupo_id: UUID):
-    db = next(get_db())
-    # Consultar o grupo pelo ID
-    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
-
-    if not grupo:
-        raise HTTPException(status_code=404, detail="Grupo não encontrado")
-
-    # Consultar os dados do grupo específico
-    dados = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == grupo_id).all()
-
-    placar = {
-        "grupo": grupo.nome,
-        "labirintos": []
-    }
-
 @app.post("/resposta")
 async def enviar_resposta(resposta: RespostaDto):
     db = next(get_db())
@@ -514,6 +497,33 @@ async def enviar_resposta(resposta: RespostaDto):
     db.commit()
 
     return {"message": "Labirinto concluído com sucesso"}
+
+@app.get("/placar/{grupo_id}")
+async def get_placar_por_grupo(grupo_id: UUID):
+    db = next(get_db())
+    # Consultar o grupo pelo ID
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
+
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+
+    # Consultar os dados do grupo específico
+    dados = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == grupo_id).all()
+
+    placar = {
+        "grupo": grupo.nome,
+        "labirintos": []
+    }
+
+    # Adiciona os labirintos e suas estatísticas à lista de labirintos
+    for dado in dados:
+        placar["labirintos"].append({
+            "labirinto": dado.labirinto_id,
+            "passos": dado.passos,
+            "exploracao": dado.exploracao
+        })
+
+    return placar
 
     
 
