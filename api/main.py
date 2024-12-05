@@ -318,7 +318,7 @@ async def get_placar():
                 "grupo": grupo,
                 "labirintos": []
             }
-        
+
         # Adiciona o labirinto e suas estatísticas à lista de labirintos do grupo
         placar[grupo]["labirintos"].append({
             "labirinto": dado.labirinto_id,
@@ -328,6 +328,33 @@ async def get_placar():
 
     # Converte o dicionário em uma lista para retornar
     return list(placar.values())
+
+@app.get("/placar/{grupo_id}")
+async def get_placar_por_grupo(grupo_id: int):
+    db = next(get_db())
+    # Consultar o grupo pelo ID
+    grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
+
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+
+    # Consultar os dados do grupo específico
+    dados = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == grupo_id).all()
+
+    placar = {
+        "grupo": grupo.nome,
+        "labirintos": []
+    }
+
+    # Adiciona os labirintos e suas estatísticas à lista de labirintos
+    for dado in dados:
+        placar["labirintos"].append({
+            "labirinto": dado.labirinto_id,
+            "passos": dado.passos,
+            "exploracao": dado.exploracao
+        })
+
+    return placar
 
 
 @app.get("/sessoes")
