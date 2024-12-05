@@ -377,7 +377,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             await manager.disconnect(websocket)
             return
 
-        arestas = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id, Aresta.labirinto_id == labirinto_id).all()
+        arestas = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
         adjacentes = [(a.vertice_destino_id, a.peso) for a in arestas]
 
         # Envia o vértice de entrada e seus adjacentes para o cliente
@@ -416,7 +416,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                         await manager.send_message("Erro ao acessar o vértice desejado.", websocket)
                         continue
                     
-                    aresta = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id, Aresta.labirinto_id == labirinto_id).all()
+                    aresta = db.query(Aresta).filter(Aresta.vertice_origem_id == vertice_atual.id).all()
 
                     if not aresta:
                         await manager.send_message("Vértice sem adjacentes.", websocket)
