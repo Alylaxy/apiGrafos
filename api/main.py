@@ -450,7 +450,9 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                         continue
 
                     adjacentes = [(a.vertice_destino_id, a.peso) for a in arestas]
-                    step_count += 1
+                    if(vertice_atual.id not in historico):
+                        step_count += 1
+                        continue
                     historico.append(vertice_atual.id)
 
                     # Envia o estado atual
