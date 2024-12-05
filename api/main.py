@@ -360,7 +360,8 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
     await manager.connect(websocket)
     db = next(get_db())
     step_count = 1
-
+    if historico == None:
+        historico = [0]
     try:
         # Obtém o labirinto e seu vértice de entrada
         labirinto = db.query(Labirinto).filter(Labirinto.id == labirinto_id).first()
@@ -368,7 +369,6 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             await websocket.send_text("Labirinto não encontrado.")
             await manager.disconnect(websocket)
             return
-        historico = [0]
         # Obtém o vértice de entrada
         vertice_atual = db.query(Vertice).filter(Vertice.labirinto_id == labirinto_id, Vertice.id == labirinto.entrada).first()
 
@@ -402,7 +402,6 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                     except ValueError:
                         await manager.send_message("Comando inválido. Use 'ir: id_do_vertice'", websocket)
                         continue
-
                     # Verifica se o vértice desejado está nos adjacentes do vértice atual
                     adjacentes = [a[0] for a in db.query(Aresta.vertice_destino_id,).filter(Aresta.vertice_origem_id == vertice_atual.id).all()]
                     if vertice_desejado_id not in adjacentes:
