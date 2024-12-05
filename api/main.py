@@ -330,7 +330,7 @@ async def get_placar():
     return list(placar.values())
 
 @app.get("/placar/{grupo_id}")
-async def get_placar_por_grupo(grupo_id: int):
+async def get_placar_por_grupo(grupo_id: UUID):
     db = next(get_db())
     # Consultar o grupo pelo ID
     grupo = db.query(Grupo).filter(Grupo.id == grupo_id).first()
