@@ -363,14 +363,16 @@ async def apaga_labirinto():
     db.commit()
     return {"message": "Labirintos apagados com sucesso."}
 
+historico = []
+
 @app.websocket("/ws/{grupo_id}/{labirinto_id}/{hist}")
 async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id: int, hist: bool = False):
     await manager.connect(websocket)
     db = next(get_db())
     step_count = 1
-    if hist:
+    if hist == True:
         historico = [0]
-
+    print("Historico inicial: ", historico)
     try:
         # Obtém o labirinto e seu vértice de entrada
         labirinto = db.query(Labirinto).filter(Labirinto.id == labirinto_id).first()
@@ -434,11 +436,12 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                     adjacentes = [(a.vertice_destino_id, a.peso) for a in arestas]
                     step_count += 1
                     historico.append(vertice_atual.id)
+                    print("Historico: ", historico)
                     # Envia o vértice de entrada e seus adjacentes para o cliente
                     await manager.send_message(f"Vértice atual: {vertice_atual.id}, Tipo: {vertice_atual.tipo}, Adjacentes(Vertice, Peso): {adjacentes}", websocket)
                 else:
                     await manager.send_message("Comando não reconhecido. Use 'ir: id_do_vertice' para se mover.", websocket)
-            
+
             except asyncio.TimeoutError:
                 # Timeout de 60 segundos sem mensagem, desconecta o WebSocket
                 await manager.send_message("Conexão encerrada por inatividade.", websocket)
