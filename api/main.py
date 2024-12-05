@@ -354,8 +354,16 @@ async def get_websocket_sessions(nome_grupo: Optional[str] = None):
 
 
 manager = ConnectionManager()
+@app.get("/apaga")
+async def apaga_labirinto():
+    db = next(get_db())
+    db.query(Labirinto).delete()
+    db.query(Vertice).delete()
+    db.query(Aresta).delete()
+    db.commit()
+    return {"message": "Labirintos apagados com sucesso."}
 
-@app.websocket("/ws/{grupo_id}/{labirinto_id}")
+@app.websocket("/ws/{grupo_id}/{labirinto_id}/{hist}")
 async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id: int, hist: bool = False):
     await manager.connect(websocket)
     db = next(get_db())
