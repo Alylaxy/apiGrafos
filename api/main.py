@@ -485,6 +485,16 @@ async def get_placar_por_grupo(grupo_id: UUID):
         "labirintos": []
     }
 
+    # Adiciona os labirintos e suas estatísticas à lista de labirintos
+    for dado in dados:
+        placar["labirintos"].append({
+            "labirinto": dado.labirinto_id,
+            "passos": dado.passos,
+            "exploracao": dado.exploracao
+        })
+
+    return placar
+
 @app.post("/resposta")
 async def enviar_resposta(resposta: RespostaDto):
     db = next(get_db())
