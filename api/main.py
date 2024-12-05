@@ -208,6 +208,21 @@ async def registrar_grupo(grupo: CriarGrupoDto):
     grupo_dto = GrupoDto(id=grupo_db.id, nome=grupo_db.nome, labirintos_concluidos=[])
     return {"GrupoId": grupo_dto.id}
 
+@app.get("/labirintos/{labirinto_id}/arestas", response_model=List[dict])
+def get_arestas(labirinto_id: int):
+    db = next(get_db())
+    arestas = db.query(Aresta).filter(Aresta.labirinto_id == labirinto_id).all()
+    if not arestas:
+        raise HTTPException(status_code=404, detail="Labirinto não encontrado ou sem arestas.")
+    return [
+        {
+            "origem": aresta.vertice_origem_id,
+            "destino": aresta.vertice_destino_id,
+            "peso": aresta.peso
+        }
+        for aresta in arestas
+    ]
+
 @app.post("/labirinto")
 async def criar_labirinto(labirinto: LabirintoModel):
     db = next(get_db())
@@ -316,13 +331,15 @@ async def get_placar():
 
 
 @app.get("/sessoes")
-async def get_websocket_sessions(nome_grupo: Optional[str] = None):
+async def get_websocket_sessions(
+        grupo_id: Optional[UUID] = None,
+):
     db = next(get_db())  # Obtém manualmente a sessão do banco de dados
     query = db.query(SessaoWebSocket)
 
-    # Filtra pelo nome do grupo, se fornecido
-    if nome_grupo:
-        query = query.join(Grupo).filter(Grupo.nome.ilike(f"%{nome_grupo}%"))
+    # Filtra pelo ID do grupo, se fornecido
+    if grupo_id:
+        query = query.filter(SessaoWebSocket.grupo_id == grupo_id)
 
     sessoes = query.all()
 
@@ -332,7 +349,6 @@ async def get_websocket_sessions(nome_grupo: Optional[str] = None):
             "id": sessao.id,
             "grupo_id": str(sessao.grupo_id),
             "conexao": sessao.conexao,
-            "grupo_nome": sessao.grupo.nome if sessao.grupo else None
         })
 
     return result
@@ -373,8 +389,15 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             try:
                 # Espera por uma mensagem do cliente com timeout de 60 segundos
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
+
+                # Retorna o histórico de movimentação
                 if data.startswith("historico"):
                     await manager.send_message(str(historico), websocket)
+
+                # Retorna o ID do labirinto atual
+                elif data.startswith("labirinto"):
+                    await manager.send_message(f"Labirinto atual: {labirinto_id}", websocket)
+
                 if data.startswith("ir:"):
                     # Extrai o id do vértice desejado
                     try:
