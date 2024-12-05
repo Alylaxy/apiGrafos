@@ -404,7 +404,7 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
                         continue
 
                     # Verifica se o vértice desejado está nos adjacentes do vértice atual
-                    adjacentes = [a[0] for a in db.query(Aresta.vertice_destino_id,).filter(Aresta.vertice_origem_id == vertice_atual.id, Aresta).all()]
+                    adjacentes = [a[0] for a in db.query(Aresta.vertice_destino_id,).filter(Aresta.vertice_origem_id == vertice_atual.id).all()]
                     if vertice_desejado_id not in adjacentes:
                         await manager.send_message("Vértice inválido.", websocket)
                         continue
