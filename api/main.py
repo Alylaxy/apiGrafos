@@ -413,6 +413,12 @@ async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id:
             
             except asyncio.TimeoutError:
                 # Timeout de 60 segundos sem mensagem, desconecta o WebSocket
+                grupo_info = db.query(InfoGrupo).filter(InfoGrupo.grupo_id == str(grupo_id), InfoGrupo.labirinto_id == labirinto_id).first()
+                if grupo_info:
+                    grupo_info.passos = step_count
+                    grupo_info.exploracao = step_count / len(db.query(Vertice).filter(Vertice.labirinto_id == labirinto_id).all())
+                    db.add(grupo_info)
+                    db.commit()
                 await manager.send_message("Conexão encerrada por inatividade.", websocket)
                 await manager.disconnect(websocket)
                 break
@@ -469,17 +475,6 @@ async def enviar_resposta(resposta: RespostaDto):
     for i in range(len(vertices) - 1):
         vertice_atual_id = vertices[i]
         vertice_proximo_id = vertices[i + 1]
-
-        # Query the database to check if there is an edge between vertice_atual_id and vertice_proximo_id
-        aresta = db.query(Aresta).filter(
-            Aresta.vertice_origem_id == vertice_atual_id,
-            Aresta.vertice_destino_id == vertice_proximo_id,
-            Aresta.labirinto_id == labirinto.id
-        ).first()
-
-        # If no edge exists between consecutive vertices, return an error
-        if not aresta:
-            raise HTTPException(status_code=400, detail=f"Caminho inválido: vértices {vertice_atual_id} e {vertice_proximo_id} não estão conectados")
 
     # Se chegou até aqui, o caminho é válido e o labirinto foi concluído com sucesso
     # (Aqui você pode marcar o labirinto como concluído ou atualizar o progresso do grupo)
