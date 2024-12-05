@@ -356,12 +356,13 @@ async def get_websocket_sessions(nome_grupo: Optional[str] = None):
 manager = ConnectionManager()
 
 @app.websocket("/ws/{grupo_id}/{labirinto_id}")
-async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id: int):
+async def websocket_endpoint(websocket: WebSocket, grupo_id: UUID, labirinto_id: int, hist: bool = False):
     await manager.connect(websocket)
     db = next(get_db())
     step_count = 1
-    if historico == None:
+    if hist:
         historico = [0]
+
     try:
         # Obtém o labirinto e seu vértice de entrada
         labirinto = db.query(Labirinto).filter(Labirinto.id == labirinto_id).first()
