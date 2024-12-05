@@ -1,2 +1,22 @@
 *.json
 *[0-9].json
+
+# Arquivos Python compilados
+__pycache__/
+*.py[cod]
+
+# Ambiente virtual
+venv/
+env/
+.env
+
+# Arquivos de log
+*.log
+
+# Outros
+.DS_Store
+
+
+saida_labirinto.txt
+
+results/
